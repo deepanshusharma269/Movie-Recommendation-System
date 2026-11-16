@@ -11,15 +11,15 @@ from sklearn.feature_extraction.text import CountVectorizer
 
 # loading the dataset and the trained model
 try:
-    clf = pickle.load(open("./Artifacts\nlp_model.pkl", 'rb'))
-    vectorizer = pickle.load(open("./Artifacts\tranform.pkl",'rb'))
+    clf = pickle.load(open("Artifacts/nlp_model.pkl", "rb"))
+    vectorizer = pickle.load(open("Artifacts/tranform.pkl", "rb"))
 except:
     print("Error in loading Artifacts")
 
 # creating a similarity matrix using count vectorizer and cosine similarity
 def create_similarity():
     try:
-        data = pd.read_csv(r"C:\Users\KALYAN\Desktop\Projects\Movie Recommendation System\Artifacts\main_data.csv")
+        data = pd.read_csv("Artifacts/main_data.csv")
         cv = CountVectorizer()
         count_matrix = cv.fit_transform(data['comb']) 
         similarity = cosine_similarity(count_matrix)
@@ -55,7 +55,7 @@ def convert_to_list(my_list):
     return my_list
 
 def get_suggestions():
-    data = pd.read_csv('main_data.csv')
+    data = pd.read_csv("Artifacts/main_data.csv")
     return list(data['movie_title'].str.capitalize())
 
 app = Flask(__name__)
@@ -128,11 +128,17 @@ def recommend():
 
     cast_details = {cast_names[i]:[cast_ids[i], cast_profiles[i], cast_bdays[i], cast_places[i], cast_bios[i]] for i in range(len(cast_places))}
 
-    # web scraping to get user reviews from IMDB site
-    sauce = urllib.request.urlopen('https://www.imdb.com/title/{}/reviews?ref_=tt_ov_rt'.format(imdb_id)).read()
-    soup = bs.BeautifulSoup(sauce,'lxml')
-    soup_result = soup.find_all("div",{"class":"text show-more__control"})
+   # Web scraping to get user reviews from IMDb
+    url = 'https://www.imdb.com/title/{}/reviews?ref_=tt_ov_rt'.format(imdb_id)
 
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0"}
+    )
+
+    sauce = urllib.request.urlopen(req, timeout=15).read()
+    soup = bs.BeautifulSoup(sauce, 'lxml')
+    soup_result = soup.find_all("div", {"class": "text show-more__control"})
     reviews_list = [] # list of reviews
     reviews_status = [] # list of comments (good or bad)
     for reviews in soup_result:
@@ -142,7 +148,7 @@ def recommend():
             movie_review_list = np.array([reviews.string])
             movie_vector = vectorizer.transform(movie_review_list)
             pred = clf.predict(movie_vector)
-            reviews_status.append('Good' if pred else 'Bad')
+            reviews_status.append('Good' if int(pred[0]) == 1 else 'Bad')
 
     # combining reviews and comments into a dictionary
     movie_reviews = {reviews_list[i]: reviews_status[i] for i in range(len(reviews_list))}     
